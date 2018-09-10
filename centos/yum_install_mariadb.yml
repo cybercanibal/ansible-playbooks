@@ -1,0 +1,66 @@
+---
+- hosts: "{{ variable_host | default('BASE') }}" 
+  remote_user: ansioper
+  become: true
+  become_method: sudo
+  
+  vars:
+    mariadb_root_pass: <your_password_here> 
+    packages:
+      - mariadb
+      - mariadb-server
+      - mariadb-test
+      - MySQL-python 
+    servers_hostnames:
+      - "{{ ansible_hostname }}"
+      - 127.0.0.1
+      - ::1
+      - localhost
+
+  tasks:
+  - name: Install MariaDB 
+    yum: 
+      name="{{ item }}" 
+      state=latest 
+    with_items: "{{ packages }}"
+
+  - name: Enable MariaDB  service
+    systemd: 
+      name: mariadb
+      enabled: yes
+
+  - name: Start MariaDB  service
+    systemd:
+      name: mariadb
+      state: started
+
+  - name: Remove test database
+    mysql_db:
+      name: test
+      state: absent
+
+  - name: Remove all anonymous user
+    mysql_user: 
+      name: ''
+      host_all: yes
+      state: absent
+
+  - name: Update MariaDB root password
+    mysql_user: 
+      name: root
+      #host: "{{ item }}"
+      host_all: yes
+      password: "{{ mariadb_root_pass }}"
+      #with_items: "{{ servers_hostnames }}"
+
+  - name: Add firewalld rule - mariadb
+    firewalld:
+      port: 3306/tcp 
+      permanent: true
+      state: enabled
+
+  - name: Reload firewalld service
+    systemd:
+      name: firewalld
+      state: restarted 
+

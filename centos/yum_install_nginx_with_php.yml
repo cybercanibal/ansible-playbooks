@@ -1,0 +1,138 @@
+---
+- hosts: "{{ variable_host | default('BASE') }}" 
+  remote_user: ansioper
+  become: true
+  become_method: sudo
+  
+  vars:
+    packages:
+      - nginx
+      - php
+      - php-fpm
+      - php-common
+      - php-cli
+      - php-pdo
+      - php-gd
+      - php-mysqlnd
+
+  tasks:
+  - name: Install Nginx and PHP Packages 
+    yum: 
+      name="{{ item }}" 
+      state=latest 
+    with_items: "{{ packages }}"
+
+  - name: Change Nginx config file /etc/nginx/nginx.conf - servername
+    lineinfile:
+      dest: /etc/nginx/nginx.conf
+      backup: yes
+      firstmatch: yes
+      regexp: '^\s*server_name.*'
+      line: '	server_name {{ ansible_hostname }};'
+
+  - name: Change Nginx config file /etc/nginx/nginx.conf - php support
+    blockinfile:
+      dest: /etc/nginx/nginx.conf
+      insertafter: '^\s*root\s*/usr/share/nginx/html;'
+      content: |
+                location ~ \.php$ {
+                  try_files $uri =404;
+                  fastcgi_pass unix:/var/run/php-fpm/php-fpm.sock;
+                  fastcgi_index index.php;
+                  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                  include fastcgi_params;   
+                }
+
+  - name: Change Nginx config file /etc/nginx/nginx.conf - index file
+    lineinfile:
+      dest: /etc/nginx/nginx.conf
+      insertafter: '^\s*root\s*/usr/share/nginx/html;'
+      line: '	index index.php index.html index.htm;'
+
+  - name: Change Nginx config file /etc/php-fpm.d/www.conf - change users 
+    lineinfile:
+      dest: /etc/php-fpm.d/www.conf
+      backup: yes
+      regexp: '^\s*user = apache'
+      line: 'user = nginx'
+
+  - name: Change Nginx config file /etc/php-fpm.d/www.conf - change groups
+    lineinfile:
+      dest: /etc/php-fpm.d/www.conf
+      regexp: '^\s*group = apache'
+      line: 'group = nginx'
+
+  - name: Change Nginx config file /etc/php-fpm.d/www.conf - change owner.users
+    lineinfile:
+      dest: /etc/php-fpm.d/www.conf
+      backup: yes
+      regexp: '^\s*;listen.owner = nobody'
+      line: 'listen.owner = nginx'
+
+  - name: Change Nginx config file /etc/php-fpm.d/www.conf - change owner.groups
+    lineinfile:
+      dest: /etc/php-fpm.d/www.conf
+      regexp: '^\s*;listen.group = nobody'
+      line: 'listen.group = nginx'
+
+  - name: Change Nginx config file /etc/php-fpm.d/www.conf - config listener 
+    lineinfile:
+      dest: /etc/php-fpm.d/www.conf
+      regexp: '^\s*listen = 127.0.0.1:9000'
+      line: ';listen = 127.0.0.1:9000'
+
+  - name: Change Nginx config file /etc/php-fpm.d/www.conf - config listener
+    lineinfile:
+      dest: /etc/php-fpm.d/www.conf
+      insertafter: '^\s*;listen = 127.0.0.1:9000'
+      line: 'listen = /var/run/php-fpm/php-fpm.sock'
+
+
+  - name: Create a php testing file
+    file:
+      path: /usr/share/nginx/html/test.php
+      state: touch
+
+  - name: Put example php content in test.php
+    blockinfile:
+      dest: /usr/share/nginx/html/test.php
+      content: |
+        <?php phpinfo();?>
+
+  - name: Enable php-fpm service
+    systemd:
+      name: php-fpm
+      enabled: yes
+
+  - name: Enable Nginx service
+    systemd: 
+      name: nginx
+      enabled: yes
+
+  - name: Start Nginx service
+    systemd:
+      name: nginx
+      state: started
+
+  - name: Start php-fpm service
+    systemd:
+      name: php-fpm
+      state: started
+
+  - name: Add firewalld rule - http
+    firewalld:
+      service: http
+      permanent: true
+      state: enabled
+
+  - name: Add firewalld rule - https
+    firewalld:
+      service: https
+      permanent: true
+      state: enabled
+
+  - name: Restart firewalld service
+    systemd:
+      name: firewalld
+      daemon_reload: yes
+      state: restarted 
