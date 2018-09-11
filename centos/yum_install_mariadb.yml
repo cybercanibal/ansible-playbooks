@@ -5,7 +5,7 @@
   become_method: sudo
   
   vars:
-    mariadb_root_pass: any999any 
+    mariadb_root_pass: <your_root_password_here> 
     packages:
       - mariadb
       - mariadb-server
