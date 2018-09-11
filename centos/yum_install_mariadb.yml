@@ -5,7 +5,7 @@
   become_method: sudo
   
   vars:
-    mariadb_root_pass: <your_password_here> 
+    mariadb_root_pass: any999any 
     packages:
       - mariadb
       - mariadb-server
@@ -23,6 +23,14 @@
       name="{{ item }}" 
       state=latest 
     with_items: "{{ packages }}"
+
+  - name: Enable external connections
+    lineinfile:
+      dest: /etc/my.cnf.d/server.cnf
+      backup: yes
+      firstmatch: yes
+      insertafter: '^\s*\[mysqld\]'
+      line: 'bind-address = 0.0.0.0'
 
   - name: Enable MariaDB  service
     systemd: 
@@ -48,10 +56,8 @@
   - name: Update MariaDB root password
     mysql_user: 
       name: root
-      #host: "{{ item }}"
       host_all: yes
       password: "{{ mariadb_root_pass }}"
-      #with_items: "{{ servers_hostnames }}"
 
   - name: Add firewalld rule - mariadb
     firewalld:
