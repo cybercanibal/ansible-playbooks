@@ -12,3 +12,4 @@ For CentOS:
 - yum_install_nginx.yml: Install Nginx WebServer.
 - yum_install_nginx_with_php.yml: Install Nginx WebServer with PHP support.
 - yum_install_mariadb.yml: Install MariaDB.
+- create_database_user_mariadb.yml: Create a database and user with grant.
