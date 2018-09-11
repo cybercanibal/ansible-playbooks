@@ -1,0 +1,28 @@
+---
+- hosts: "{{ variable_host | default('BASE') }}" 
+  remote_user: ansioper
+  become: true
+  become_method: sudo
+  
+  vars:
+    mariadb_root_pass: <your_root_password_here> 
+    mariadb_joomla_pass: <your_password_here> 
+    mariadb_joomla_user: joomlaus
+    mariadb_joomla_ddbb: joomladb
+
+  tasks:
+  - name: Create database
+    mysql_db:
+      login_user: root
+      login_password: "{{ mariadb_root_pass }}" 
+      name: "{{ mariadb_joomla_ddbb }}" 
+      state: present
+
+  - name: Create user
+    mysql_user:
+      login_user: root
+      login_password: "{{ mariadb_root_pass }}"
+      user: "{{ mariadb_joomla_user }}"
+      password: "{{ mariadb_joomla_pass }}"
+      priv: "{{ mariadb_joomla_ddbb }}.*:ALL"
+      state: present
